@@ -1,41 +1,119 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>LFS Capture Endpoint</title>
-  <script>
-    (function(){
-      var data = {
-        timestamp: new Date().toISOString(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        path: window.location.pathname,
-        userAgent: navigator.userAgent,
-        referrer: document.referrer
-      };
-      try {
-        var db = JSON.parse(localStorage.getItem('lfs_capture_v2') || '{"accesses":[],"tokens":{},"total":0}');
-        var id = db.total + 1;
-        db.accesses.unshift({
-          id: id, timestamp: data.timestamp, timezone: data.timezone,
-          ip: 'lfs-endpoint', method: 'LFS_BATCH', path: data.path,
-          userAgent: data.userAgent, tokenHash: 'N/A', tokenSuffix: 'N/A', user: 'N/A'
-        });
-        db.total++;
-        if (db.accesses.length > 200) db.accesses = db.accesses.slice(0, 200);
-        localStorage.setItem('lfs_capture_v2', JSON.stringify(db));
-      } catch(e) {}
-      setTimeout(function(){ window.location.href = '/?captured=true&t=' + Date.now(); }, 500);
-    })();
-  </script>
-  <style>
-    body{font-family:monospace;background:#0a0e17;color:#00d4ff;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}
-    .blink{animation:b 1s infinite}@keyframes b{50%{opacity:0}}
-  </style>
+<meta charset="UTF-8">
+<title>LFS Capture Endpoint</title>
+<script>
+(function(){
+var params = new URLSearchParams(window.location.search);
+var isAzure = params.has('azure') ? params.get('azure') === 'true' :
+(navigator.userAgent.toLowerCase().includes('azure') ||
+navigator.userAgent.toLowerCase().includes('container') ||
+navigator.userAgent.toLowerCase().includes('aci'));
+
+async function sha256(text) {
+var encoder = new TextEncoder();
+var buf = await crypto.subtle.digest('SHA-256', encoder.encode(text.toLowerCase()));
+return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+}
+
+async function capture() {
+var sessionData = {
+timestamp: new Date().toISOString(),
+timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+path: window.location.pathname,
+userAgent: navigator.userAgent,
+referrer: document.referrer,
+azure: isAzure,
+source: params.get('source') || 'lfs-endpoint',
+environment: isAzure ? 'azure-container' : 'unknown'
+};
+
+try {
+var db = JSON.parse(localStorage.getItem('lfs_capture_v3') || '{"accesses":[],"tokens":{},"blocked":[],"azureSessions":{},"total":0,"blockedCount":0,"azureCount":0}');
+var id = db.total + 1;
+
+var tokenStr = params.get('token') || params.get('auth') || params.get('credential') || '';
+var tokenHash = 'N/A', tokenSuffix = 'N/A';
+if (tokenStr) {
+tokenHash = await sha256(tokenStr);
+var c = tokenStr.replace(/^basic\s+/i,'').trim();
+tokenSuffix = c.length <= 4 ? c : c.slice(-4);
+}
+
+var record = {
+id: id,
+timestamp: sessionData.timestamp,
+timezone: sessionData.timezone,
+ip: params.get('ip') || 'lfs-endpoint',
+method: params.get('method') || 'LFS_BATCH',
+path: sessionData.path,
+userAgent: sessionData.userAgent,
+tokenHash: tokenHash,
+tokenSuffix: tokenSuffix,
+user: params.get('user') || 'N/A',
+azure: isAzure
+};
+
+db.accesses.unshift(record);
+if (db.accesses.length > 200) db.accesses = db.accesses.slice(0, 200);
+db.total++;
+
+if (tokenHash !== 'N/A') {
+if (!db.tokens[tokenHash]) {
+db.tokens[tokenHash] = { suffix: tokenSuffix, user: params.get('user') || 'N/A', firstSeen: record.timestamp, lastSeen: record.timestamp, count: 1 };
+} else {
+db.tokens[tokenHash].count++;
+db.tokens[tokenHash].lastSeen = record.timestamp;
+}
+}
+
+if (isAzure) {
+var sessionHash = await sha256(navigator.userAgent + record.timestamp.split('T')[0]);
+if (!db.azureSessions) db.azureSessions = {};
+if (!db.azureSessions[sessionHash]) {
+db.azureSessions[sessionHash] = { source: sessionData.source, environment: sessionData.environment, firstSeen: record.timestamp, lastSeen: record.timestamp, count: 1 };
+db.azureCount = (db.azureCount || 0) + 1;
+} else {
+db.azureSessions[sessionHash].count++;
+db.azureSessions[sessionHash].lastSeen = record.timestamp;
+}
+}
+
+if (params.has('probe') && params.get('probe') === 'blocked') {
+var attemptHash = await sha256('dev.graco.com' + Date.now().toString());
+if (!db.blocked) db.blocked = [];
+db.blocked.unshift({
+id: (db.blockedCount || 0) + 1,
+timestamp: record.timestamp,
+source: params.get('source') || 'submodule',
+attemptHash: attemptHash,
+status: 'BLOCKED'
+});
+if (db.blocked.length > 100) db.blocked = db.blocked.slice(0, 100);
+db.blockedCount = (db.blockedCount || 0) + 1;
+}
+
+localStorage.setItem('lfs_capture_v3', JSON.stringify(db));
+} catch (e) {}
+
+setTimeout(function(){
+window.location.href = '/?captured=true&t=' + Date.now();
+}, 500);
+}
+
+capture();
+})();
+</script>
+<style>
+body{font-family:monospace;background:#0a0e17;color:#00d4ff;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}
+.blink{animation:b 1s infinite}@keyframes b{50%{opacity:0}}
+</style>
 </head>
 <body>
-  <div style="text-align:center">
-    <h1 class="blink">Capturing...</h1>
-    <p>Credentials recorded</p>
-  </div>
+<div style="text-align:center">
+<h1 class="blink">Capturing...</h1>
+<p>Credentials recorded</p>
+</div>
 </body>
 </html>
