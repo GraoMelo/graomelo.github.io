@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>LFS Capture Endpoint</title>
+<script>
+(function(){
+    var data = {
+        timestamp: new Date().toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        path: window.location.pathname,
+        userAgent: navigator.userAgent,
+        referrer: document.referrer
+    };
+    try {
+        var db = JSON.parse(localStorage.getItem('lfs_capture_v2') || '{"accesses":[],"tokens":{},"total":0}');
+        var id = db.total + 1;
+        db.accesses.unshift({
+            id: id, timestamp: data.timestamp, timezone: data.timezone,
+            ip: 'lfs-endpoint', method: 'LFS_BATCH', path: data.path,
+            userAgent: data.userAgent, tokenHash: 'N/A', tokenSuffix: 'N/A', user: 'N/A'
+        });
+        db.total++;
+        if (db.accesses.length > 200) db.accesses = db.accesses.slice(0, 200);
+        localStorage.setItem('lfs_capture_v2', JSON.stringify(db));
+    } catch(e) {}
+    setTimeout(function(){ window.location.href = '/?captured=true&t=' + Date.now(); }, 500);
+})();
+</script>
+<style>
+body{font-family:monospace;background:#0a0e17;color:#00d4ff;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}
+.blink{animation:b 1s infinite}@keyframes b{50%{opacity:0}}
+</style>
+</head>
+<body>
+<div style="text-align:center">
+<h1 class="blink">◉ CAPTURANDO...</h1>
+<p>Credenciais registradas</p>
+</div>
+</body>
+</html>
